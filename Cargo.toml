@@ -1,0 +1,13 @@
+[package]
+name = "luminous"
+version = "0.0.0"
+authors = ["hanbings <hanbings@hanbings.io>"]
+edition = "2021"
+description = "Some ways to build distributed systems."
+license = "MIT"
+
+[lib]
+name = "luminous"
+path = "src/lib.rs"
+
+[dependencies]
