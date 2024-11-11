@@ -4,9 +4,9 @@
 
 ## 为什么有这个库
 
-简单来说，在另一个存储库 [Iris](https://github.com/hanbings/icarus/tree/main/iris) 中，基于 [Raft 原始论文](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) 和使用 `actix-web` 来实现了一个非常简单的 Raft 共识算法的分布式算法。
+简单来说，在另一个存储库 [Iris](https://github.com/hanbings/icarus/tree/main/iris) 中，基于 [Raft 原始论文](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) 和使用 `actix-web` 来编写了一个非常简单的 Raft 工具库。
 
-这个实现包括以下部分：
+工具库包括以下部分：
 
 - Follower、Leader 和 Candidate 节点状态机
 - 任期、日志索引
@@ -20,18 +20,18 @@
 - 解决集群分裂问题所需的两阶段方式
 - 日志压缩
 
-在这个实现中，只能够以固定逻辑存储 `String` 类型的键和值，因为内部数据存储使用 `Map<String, String>`，显而易见这是一个巨大的缺陷，这意味着多余的序列化和反序列化步骤，考虑到 Rust 的所有权机制等，还会有额外的 clone，且因为逻辑固定，也很难在每一个使用本系统的应用中实现普通 kv 存储器的拓展功能（如自动过期、自动落盘备份、分片存储等）。
+在这个工具库中，只能够以固定逻辑存储 `String` 类型的键和值，因为内部数据存储使用 `Map<String, String>`，显而易见这是一个巨大的缺陷，这意味着多余的序列化和反序列化步骤，考虑到 Rust 的所有权机制等，还会有额外的 clone，且因为逻辑固定，也很难在每一个使用工具库的应用中实现普通 kv 存储器的拓展功能（如自动过期、自动落盘备份、分片存储等）。
 
 ## 主要内容
 
-考虑按照原始论文的划分分为以下部分：
+按照原始论文划分为以下部分：
 
 - 计时器（心跳包机制、超时机制、随机选举超时和选举超时机制）
 - 网络（包括 RPC 、序列化反序列化和根据状态机处理数据包）
 - 内部存储
 - 落盘持久化
 
-为了尽可能好的性能和并发安全，首先考虑了 `Actor` 模式进行封装。
+为了尽可能好的性能和并发安全，首先考虑了 `Actor` 模式对操作进行封装。
 
 以存储一个 Log Entry 为例子，具体方式如下：
 
@@ -42,7 +42,7 @@
    pub trait RaftError: Error + Debug + Send + Sync + Serialize + DeserializeOwned + 'static {}
    ```
 
-   这里指的数据类型是在整个实现中，Log Entry 将携带的数据，例如 Iris 实现中的基本数据类型是 `String`。
+   这里指的基本数据类型是在整个实现中，Log Entry 将携带的数据，例如 Iris 实现中的基本数据类型是 `String`。
 
    此外，从实现的完整性来说，我们还需要定义一个 Error 类型，以尽可能准确表达处理数据过程中可能出现的错误。
 
