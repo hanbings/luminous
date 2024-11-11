@@ -22,7 +22,7 @@ impl Display for RaftNodeType {
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct RaftNode {
-    pub id: NodeEndpoint,
+    pub endpoint: NodeEndpoint,
     pub node_type: RaftNodeType,
     pub current_term: u32,
     pub current_voted_for: Option<NodeEndpoint>,
