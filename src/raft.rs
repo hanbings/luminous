@@ -9,13 +9,37 @@ pub mod network;
 pub mod node;
 pub mod persistent;
 
+/// We need to define some types globally so that we can pass them accurately throughout the implementation.
+/// 
+/// Generally speaking, using `NodeId` should be able to normally index the endpoint part of a `Node` 
+/// in a data structure containing all `Node`. 
+/// However, in order to better simplify some unnecessary operations 
+/// (such as requesting `Node` information back and forth in the first few RPCs when a new node joins the cluster), 
+/// we also define a `NodeEndpoint` for emergencies.
+pub type NodeId = u64;
 pub type NodeEndpoint = String;
-
+/// `RaftDataType` is used to define the data type of `RaftLogEntry` stored 
+/// in the internal data structure (the state inside the state machine).
+/// 
+/// Generics are abbreviated as `T`.
 pub trait RaftDataType:
     Clone + Debug + Send + Sync + Serialize + DeserializeOwned + 'static
 {
 }
-
+/// Used to pass the data type in the log in `AppendEntries`.
+///  
+/// Usually it is consistent with `RaftDataType`. 
+/// But there are special cases, such as `RaftDataType` is `Map<String, String>`, 
+/// so we have to use two fields `key` and `value` in `LogEntry`, 
+/// and add a `RaftLogEntryType` here. 
+/// 
+/// But the user should ensure that it is indeed associated with `RaftDataType` and is within the range that serde can handle.
+/// 
+/// Generics are abbreviated as `L`.
+pub trait RaftLogEntryType: Clone + Debug + Send + Sync + Serialize + DeserializeOwned + 'static {}
+/// `RaftError` will be used throughout the system to return possible errors. 
+/// Therefore, users should define their own error types to convey accurate error information.
+/// Generics are abbreviated as `E``.
 pub trait RaftError: Error + Debug + Send + Sync + Serialize + DeserializeOwned + 'static {}
 
 pub trait RaftNetwork<T>
