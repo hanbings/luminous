@@ -1,4 +1,5 @@
-use super::NodeEndpoint;
+use super::{NodeEndpoint, RaftDataType, RaftError, RaftLog, RaftNetwork, RaftPersistent};
+use actix::Addr;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
@@ -31,4 +32,21 @@ pub struct RaftNode {
     pub last_applied: u32,
     pub next_index: Vec<u32>,
     pub match_index: Vec<u32>,
+}
+
+pub struct RaftCluster<T, E, N, L, P>
+where
+    T: RaftDataType,
+    E: RaftError,
+    N: RaftNetwork<T>,
+    L: RaftLog<T, E>,
+    P: RaftPersistent<T, E>,
+{
+    pub node: RaftNode,
+    pub nodes: Vec<RaftNode>,
+    pub logs: Vec<T>,
+    pub network: Addr<N>,
+    pub log: Addr<L>,
+    pub persistent: Addr<P>,
+    e: std::marker::PhantomData<E>,
 }
