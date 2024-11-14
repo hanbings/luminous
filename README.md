@@ -2,51 +2,51 @@
 
 <h1 align="center">🌟 Luminous</h1>
 
-## 为什么有这个库
+## What's this?
 
-简单来说，在另一个存储库 [Iris](https://github.com/hanbings/icarus/tree/main/iris) 中，基于 [Raft 原始论文](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) 和使用 `actix-web` 来编写了一个非常简单的 Raft 工具库。
+In another repository [Iris](https://github.com/hanbings/icarus/tree/main/iris), a very simple Raft tool library is written based on the [original Raft paper](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) and using `actix-web`.
 
-工具库包括以下部分：
+The tool library includes the following parts:
 
-- Follower、Leader 和 Candidate 节点状态机
-- 任期、日志索引
-- `AppendEntries` RPC、`VoteRequest` RPC
-- heartbeat 包机制、超时选举、随机选举超时和选举超时
+- Follower, Leader and Candidate node state machines
+- Term, log index
+- `AppendEntries` RPC, `VoteRequest` RPC
+- Heartbeat packet mechanism, timeout election, random election timeout and election timeout
 
-未实现部分：
+Unimplemented parts:
 
-- 日志一致性检查流程
-- 高度一致性（准确来说，是节点加入集群前的日志复制流程）
-- 解决集群分裂问题所需的两阶段方式
-- 日志压缩
+- Log consistency check process
+- High consistency (to be precise, the log replication process before the node joins the cluster)
+- Two-stage method required to solve the cluster split problem
+- Log compression
 
-在这个工具库中，只能够以固定逻辑存储 `String` 类型的键和值，因为内部数据存储使用 `Map<String, String>`，显而易见这是一个巨大的缺陷，这意味着多余的序列化和反序列化步骤，考虑到 Rust 的所有权机制等，还会有额外的 clone，且因为逻辑固定，也很难在每一个使用工具库的应用中实现普通 kv 存储器的拓展功能（如自动过期、自动落盘备份、分片存储等）。
+In this tool library, only keys and values ​​of type `String` can be stored with fixed logic, because the internal data storage uses `Map<String, String>`. Obviously, this is a huge flaw, which means redundant serialization and deserialization steps. Considering Rust's ownership mechanism, there will be additional clones. And because the logic is fixed, it is also difficult to implement the extended functions of ordinary kv storage (such as automatic expiration, automatic disk backup, shard storage, etc.) in every application using the tool library.
 
-## 主要内容
+## Usage
 
-按照原始论文划分为以下部分：
+According to the original paper, it is divided into the following parts:
 
-- 计时器（心跳包机制、超时机制、随机选举超时和选举超时机制）
-- 网络（包括 RPC 、序列化反序列化和根据状态机处理数据包）
-- 内部存储
-- 落盘持久化
+- Timer (heartbeat packet mechanism, timeout mechanism, random election timeout and election timeout mechanism)
+- Network (including RPC, serialization and deserialization, and data packet processing according to the state machine)
+- Internal storage
+- Disk persistence
 
-为了尽可能好的性能和并发安全，首先考虑了 `Actor` 模式对操作进行封装。
+In order to achieve the best possible performance and concurrency safety, the `Actor` mode is first considered to encapsulate the operations.
 
-以存储一个 Log Entry 为例子，具体方式如下：
+Taking storing a `Log Entry` as an example, the specific method is as follows:
 
-1. 定义基本数据类型
+1. Define basic data types
 
    ```rust
    pub trait RaftDataType: Clone + Debug + Send + Sync + Serialize + DeserializeOwned + 'static {}
    pub trait RaftError: Error + Debug + Send + Sync + Serialize + DeserializeOwned + 'static {}
    ```
 
-   这里指的基本数据类型是在整个实现中，Log Entry 将携带的数据，例如 Iris 实现中的基本数据类型是 `String`。
+   The basic data type here refers to the data that the `Log Entry` will carry in the entire implementation. For example, the basic data type in the Iris implementation is `String`.
 
-   此外，从实现的完整性来说，我们还需要定义一个 Error 类型，以尽可能准确表达处理数据过程中可能出现的错误。
+   In addition, for the sake of implementation completeness, we also need to define an `Error` type to express as accurately as possible the errors that may occur during data processing.
 
-2. 实现一个 SaveLog 结构体并实现 `actix::Message`
+2. Implement a `SaveLog` structure and implement `actix::Message`
 
    ```rust
    #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -62,11 +62,11 @@
    }
    ```
 
-   看起来会有些怪？实际上这个 `SaveLog` 充当的是一个函数的作用，声明了将会传入 `Actor` 的参数（`term: u64, index: u64, data: T`）以及返回值（`type Result = Result<(), E>;`）。
+   Does this look a bit strange? Actually, this `SaveLog` acts as a function, declaring the parameters that will be passed to `Actor` (`term: u64, index: u64, data: T`) and the return value (`type Result = Result<(), E>;`).
 
-   至于 `std::marker::PhantomData<E>`，是因为在结构体中并没有使用 E 作为一个字段，它将产生 [无界生命周期](https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html)。于是我们需要使用一个用于占位的工具，使得它在结构体内被声明但不能产生真正的内存消耗，[PhantomData](https://doc.rust-lang.org/nomicon/phantom-data.html) 就很适合。
+   As for `std::marker::PhantomData<E>`, since `E` is not used as a field in the structure, it will generate [unbounded lifetime](https://doc.rust-lang.org/nomicon/unbounded-lifetimes.html). So we need to use a placeholder tool so that it can be declared in the structure but cannot generate real memory consumption, [PhantomData](https://doc.rust-lang.org/nomicon/phantom-data.html) is very suitable.
 
-3. 定义一个 “聚合” 特性，提供给用户实现它并通过某个接口传入实现中。
+3. Define an "aggregate" feature, provide it to users to implement and pass it into the implementation through an interface.
 
    ```rust
    pub trait RaftLog<T, E>
@@ -80,7 +80,7 @@
    }
    ```
 
-   到这一步来说，我们就为用户提供了一个 “函数”，用于处理保存 Log Entry。使用方式大致如下：
+   At this point, we have provided a "function" for users to process and save `Log Entry`. The usage is as follows:
    
    ```rust
    impl RaftLog<String, XXError> for RaftCluster<String, XXError> { }
@@ -91,17 +91,17 @@
    
    impl Handler<log::SaveLog<String, XXError>> for RaftCluster<String, XXError> {
        fn handle(&mut self, msg: SaveLog<String, XXError>) {
-           // 在这里进行实际的存储步骤
+           // Perform the actual storage step here
        }
    }
    ```
 
-## 参考与致谢
+## References and Acknowledgements
 
-[In Search of an Understandable Consensus Algorithm](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) Raft 的原始论文
+[In Search of an Understandable Consensus Algorithm](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf) Original Raft paper
 
-[actix-raft](https://github.com/bjornmolin/actix-raft) 的严谨且具有拓展性实现
+A rigorous and scalable implementation of [actix-raft](https://github.com/bjornmolin/actix-raft)
 
-[raft-rs](https://github.com/tikv/raft-rs) 是一个高性能和易于理解的实现
+[raft-rs](https://github.com/tikv/raft-rs) is a high-performance and easy-to-understand implementation
 
-感谢！
+Thanks!
